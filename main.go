@@ -3,15 +3,13 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
 
+	"github.com/caniuse-scraper/output"
 	"github.com/caniuse-scraper/scraper"
 )
 
 func main() {
-	threshold := 90.0
-
-	fmt.Printf("Fetching caniuse data")
+	fmt.Println("Fetching caniuse data...")
 	body, err := scraper.FetchData(scraper.DataURL)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error fetching data: %v\n", err)
@@ -24,15 +22,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	results := scraper.FilterCSS(data, threshold)
+	results := scraper.FilterCSS(data, 0)
 
-	fmt.Printf("\nCSS features with >= %.0f%% browser coverage:\n", threshold)
-	fmt.Printf("%-50s %-10s %-10s %s\n", "Feature", "Coverage", "Status", "URL")
-	fmt.Println(strings.Repeat("-", 100))
-
-	for _, r := range results {
-		fmt.Printf("%-50s %-10.2f %-10s %s\n", r.Title, r.Coverage, r.Status, r.URL)
+	if err := output.WriteCSV("output.csv", results); err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing CSV: %v\n", err)
+		os.Exit(1)
 	}
 
-	fmt.Printf("\nTotal: %d features\n", len(results))
+	fmt.Printf("Wrote %d features to output.csv\n", len(results))
 }
