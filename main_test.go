@@ -62,3 +62,25 @@ func TestFetchData_NonOKStatus(t *testing.T) {
 		t.Fatal("expected error for 404 response, got nil")
 	}
 }
+
+func TestFeatureURL(t *testing.T) {
+	tests := []struct {
+		name string
+		id   string
+		want string
+	}{
+		{"simple id", "css-grid", "https://caniuse.com/css-grid"},
+		{"id with numbers", "css3-colors", "https://caniuse.com/css3-colors"},
+		{"id with multiple hyphens", "css-logical-props", "https://caniuse.com/css-logical-props"},
+		{"empty id", "", "https://caniuse.com/"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := featureURL(tt.id)
+			if got != tt.want {
+				t.Errorf("featureURL(%q) = %q, want %q", tt.id, got, tt.want)
+			}
+		})
+	}
+}

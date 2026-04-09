@@ -33,6 +33,11 @@ type Result struct {
 	Coverage float64
 	Spec     string
 	Status   string
+	URL      string
+}
+
+func featureURL(id string) string {
+	return "https://caniuse.com/" + id
 }
 
 func fetchData(url string) ([]byte, error) {
@@ -89,6 +94,7 @@ func main() {
 				Coverage: coverage,
 				Spec:     feature.Spec,
 				Status:   feature.Status,
+				URL:      featureURL(id),
 			})
 		}
 	}
@@ -98,11 +104,11 @@ func main() {
 	})
 
 	fmt.Printf("\nCSS features with >= %.0f%% browser coverage:\n", threshold)
-	fmt.Printf("%-50s %-10s %-10s\n", "Feature", "Coverage", "Status")
+	fmt.Printf("%-50s %-10s %-10s %s\n", "Feature", "Coverage", "Status", "URL")
 	fmt.Println(strings.Repeat("-", 75))
 
 	for _, r := range results {
-		fmt.Printf("%-50s %-10.2f %-10s\n", r.Title, r.Coverage, r.Status)
+		fmt.Printf("%-50s %-10.2f %-10s %s\n", r.Title, r.Coverage, r.Status, r.URL)
 	}
 
 	fmt.Printf("\nTotal: %d features\n", len(results))
