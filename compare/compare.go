@@ -1,29 +1,36 @@
 package compare
 
 import (
-	"bytes"
 	"encoding/csv"
 	"fmt"
+	"io"
 	"strconv"
 
 	"github.com/caniuse-scraper/scraper"
 )
 
-// ParseCSV reads output.csv bytes into a map of feature ID → coverage.
-func ParseCSV(data []byte) (map[string]float64, error) {
-	r := csv.NewReader(bytes.NewReader(data))
-	rows, err := r.ReadAll()
-	if err != nil {
-		return nil, fmt.Errorf("read csv: %w", err)
+// ParseCSV streams r row by row into a map of feature ID → coverage.
+// It never loads the full contents into memory.
+func ParseCSV(r io.Reader) (map[string]float64, error) {
+	reader := csv.NewReader(r)
+
+	// skip header
+	if _, err := reader.Read(); err != nil {
+		return nil, fmt.Errorf("read header: %w", err)
 	}
-	m := make(map[string]float64, len(rows)-1)
-	for _, row := range rows[1:] { // skip header
-		if len(row) < 2 {
-			continue
+
+	m := make(map[string]float64)
+	for {
+		row, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("read row: %w", err)
 		}
 		val, err := strconv.ParseFloat(row[1], 64)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("parse coverage for %q: %w", row[0], err)
 		}
 		m[row[0]] = val
 	}

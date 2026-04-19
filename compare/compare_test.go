@@ -1,15 +1,16 @@
 package compare
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/caniuse-scraper/scraper"
 )
 
 func TestParseCSV(t *testing.T) {
-	csv := []byte("ID,Coverage,Status\ncss-grid,93.50,rec\ncss-flexbox,88.00,rec\n")
+	r := strings.NewReader("ID,Coverage,Status\ncss-grid,93.50,rec\ncss-flexbox,88.00,rec\n")
 
-	m, err := ParseCSV(csv)
+	m, err := ParseCSV(r)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

@@ -26,7 +26,7 @@ type S3GetObjectAPI interface {
 	GetObject(ctx context.Context, input *s3.GetObjectInput, opts ...func(*s3.Options)) (*s3.GetObjectOutput, error)
 }
 
-func FromS3(ctx context.Context, client S3GetObjectAPI, bucket, key string) ([]byte, error) {
+func FromS3(ctx context.Context, client S3GetObjectAPI, bucket, key string) (io.ReadCloser, error) {
 	out, err := client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
@@ -34,6 +34,5 @@ func FromS3(ctx context.Context, client S3GetObjectAPI, bucket, key string) ([]b
 	if err != nil {
 		return nil, err
 	}
-	defer out.Body.Close()
-	return io.ReadAll(out.Body)
+	return out.Body, nil
 }

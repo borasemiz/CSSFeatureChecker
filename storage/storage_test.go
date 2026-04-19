@@ -66,9 +66,15 @@ func TestToS3_Error(t *testing.T) {
 
 func TestFromS3_Success(t *testing.T) {
 	mock := &mockS3Client{returnBody: "hello csv"}
-	data, err := FromS3(context.Background(), mock, "my-bucket", "output.csv")
+	body, err := FromS3(context.Background(), mock, "my-bucket", "output.csv")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+	defer body.Close()
+
+	data, err := io.ReadAll(body)
+	if err != nil {
+		t.Fatalf("unexpected error reading body: %v", err)
 	}
 	if string(data) != "hello csv" {
 		t.Errorf("expected %q, got %q", "hello csv", string(data))
