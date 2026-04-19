@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"os"
+
 	"github.com/aws/aws-lambda-go/lambda"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -19,7 +21,6 @@ import (
 
 const (
 	csvKey    = "output.csv"
-	csvTmp    = "/tmp/output.csv"
 	sesSender = "noreply@example.com"
 	sesTo     = "team@example.com"
 )
@@ -72,17 +73,13 @@ func handler(ctx context.Context) error {
 		crossed = compare.NewlyAbove90(old, freshResults)
 	}
 
-	// 4. Write new output.csv and upload to S3
-	if err := output.WriteCSV(csvTmp, freshResults); err != nil {
+	// 4. Write new output.csv directly into a buffer and upload to S3
+	var buf bytes.Buffer
+	if err := output.WriteCSV(&buf, freshResults); err != nil {
 		return fmt.Errorf("write csv: %w", err)
 	}
 
-	csv, err := os.ReadFile(csvTmp)
-	if err != nil {
-		return fmt.Errorf("read csv: %w", err)
-	}
-
-	if err := storage.ToS3(ctx, s3Client, bucket, csvKey, csv); err != nil {
+	if err := storage.ToS3(ctx, s3Client, bucket, csvKey, &buf); err != nil {
 		return fmt.Errorf("upload csv: %w", err)
 	}
 

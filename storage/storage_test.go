@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"strings"
+
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -44,7 +45,7 @@ func (m *mockS3Client) GetObject(
 
 func TestToS3_Success(t *testing.T) {
 	mock := &mockS3Client{}
-	err := ToS3(context.Background(), mock, "my-bucket", "output.csv", []byte("data"))
+	err := ToS3(context.Background(), mock, "my-bucket", "output.csv", strings.NewReader("data"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -58,7 +59,7 @@ func TestToS3_Success(t *testing.T) {
 
 func TestToS3_Error(t *testing.T) {
 	mock := &mockS3Client{returnErr: errors.New("s3 error")}
-	err := ToS3(context.Background(), mock, "my-bucket", "output.csv", []byte("data"))
+	err := ToS3(context.Background(), mock, "my-bucket", "output.csv", strings.NewReader("data"))
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
