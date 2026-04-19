@@ -1,8 +1,9 @@
-package upload
+package storage
 
 import (
 	"bytes"
 	"context"
+	"io"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -19,4 +20,20 @@ func ToS3(ctx context.Context, client S3PutObjectAPI, bucket, key string, data [
 		Body:   bytes.NewReader(data),
 	})
 	return err
+}
+
+type S3GetObjectAPI interface {
+	GetObject(ctx context.Context, input *s3.GetObjectInput, opts ...func(*s3.Options)) (*s3.GetObjectOutput, error)
+}
+
+func FromS3(ctx context.Context, client S3GetObjectAPI, bucket, key string) ([]byte, error) {
+	out, err := client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer out.Body.Close()
+	return io.ReadAll(out.Body)
 }
