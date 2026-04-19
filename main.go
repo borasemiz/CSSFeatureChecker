@@ -15,6 +15,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error fetching data: %v\n", err)
 		os.Exit(1)
 	}
+	defer body.Close()
 
 	data, err := scraper.Parse(body)
 	if err != nil {

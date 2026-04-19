@@ -1,8 +1,10 @@
 package scraper
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -42,9 +44,15 @@ func TestFetchData_Success(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	got, err := FetchData(srv.URL)
+	rc, err := FetchData(srv.URL)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+	defer rc.Close()
+
+	got, err := io.ReadAll(rc)
+	if err != nil {
+		t.Fatalf("unexpected error reading body: %v", err)
 	}
 	if string(got) != body {
 		t.Errorf("got %q, want %q", string(got), body)
@@ -60,6 +68,22 @@ func TestFetchData_NonOKStatus(t *testing.T) {
 	_, err := FetchData(srv.URL)
 	if err == nil {
 		t.Fatal("expected error for 404 response, got nil")
+	}
+}
+
+func TestParse(t *testing.T) {
+	r := strings.NewReader(`{"data":{"css-grid":{"title":"CSS Grid Layout","status":"rec","categories":["CSS"],"usage_perc_y":92.0,"usage_perc_a":1.0}}}`)
+
+	data, err := Parse(r)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	f, ok := data.Data["css-grid"]
+	if !ok {
+		t.Fatal("expected css-grid in data")
+	}
+	if f.Title != "CSS Grid Layout" {
+		t.Errorf("expected title %q, got %q", "CSS Grid Layout", f.Title)
 	}
 }
 

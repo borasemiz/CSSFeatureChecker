@@ -39,19 +39,19 @@ func FeatureURL(id string) string {
 	return "https://caniuse.com/" + id
 }
 
-func FetchData(url string) ([]byte, error) {
+func FetchData(url string) (io.ReadCloser, error) {
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
 		return nil, fmt.Errorf("unexpected status: %s", resp.Status)
 	}
 
-	return io.ReadAll(resp.Body)
+	return resp.Body, nil
 }
 
 func IsCSSFeature(categories []string) bool {
@@ -87,9 +87,9 @@ func FilterCSS(data CaniuseData, threshold float64) []Result {
 	return results
 }
 
-func Parse(body []byte) (CaniuseData, error) {
+func Parse(r io.Reader) (CaniuseData, error) {
 	var data CaniuseData
-	if err := json.Unmarshal(body, &data); err != nil {
+	if err := json.NewDecoder(r).Decode(&data); err != nil {
 		return CaniuseData{}, fmt.Errorf("parse error: %w", err)
 	}
 	return data, nil
