@@ -5,16 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strings"
-
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/aws-sdk-go-v2/service/sesv2"
-	sestypes "github.com/aws/aws-sdk-go-v2/service/sesv2/types"
 	"github.com/caniuse-scraper/compare"
+	"github.com/caniuse-scraper/email"
 	"github.com/caniuse-scraper/output"
 	"github.com/caniuse-scraper/scraper"
 	"github.com/caniuse-scraper/storage"
@@ -91,41 +88,12 @@ func handler(ctx context.Context) error {
 
 	// 5. Email results via SES
 	if len(crossed) > 0 {
-		if err := sendEmail(ctx, sesv2.NewFromConfig(cfg), crossed); err != nil {
+		if err := email.Send(ctx, sesv2.NewFromConfig(cfg), sesSender, sesTo, crossed); err != nil {
 			return fmt.Errorf("send email: %w", err)
 		}
 	}
 
 	return nil
-}
-
-func sendEmail(ctx context.Context, client *sesv2.Client, features []scraper.Result) error {
-	var sb strings.Builder
-	sb.WriteString("The following CSS features have newly crossed 90% browser coverage:\n\n")
-	for _, f := range features {
-		fmt.Fprintf(&sb, "- %s: %.2f%%\n  %s\n\n", f.Title, f.Coverage, f.URL)
-	}
-
-	_, err := client.SendEmail(ctx, &sesv2.SendEmailInput{
-		FromEmailAddress: aws.String(sesSender),
-		Destination: &sestypes.Destination{
-			ToAddresses: []string{sesTo},
-		},
-		Content: &sestypes.EmailContent{
-			Simple: &sestypes.Message{
-				Subject: &sestypes.Content{
-					Data: aws.String("CSS Features Newly Above 90% Coverage"),
-				},
-				Body: &sestypes.Body{
-					Text: &sestypes.Content{
-						Data: aws.String(sb.String()),
-					},
-				},
-			},
-		},
-	})
-
-	return err
 }
 
 func main() {
