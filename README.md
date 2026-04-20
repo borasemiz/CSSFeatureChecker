@@ -25,16 +25,16 @@ On the first run there is no previous CSV to compare against, so the email step 
 
 | Variable | Description |
 |----------|-------------|
-| `BUCKET_NAME` | S3 bucket where `output.csv` is stored |
-| `AWS_ACCESS_KEY_ID` | AWS credentials |
-| `AWS_SECRET_ACCESS_KEY` | AWS credentials |
-| `AWS_REGION` | AWS region (e.g. `eu-west-1`) |
-| `SMTP_HOST` | SMTP server hostname (e.g. `smtp.gmail.com`) |
-| `SMTP_PORT` | SMTP port — `587` for STARTTLS |
-| `SMTP_USERNAME` | SMTP login username |
-| `SMTP_PASSWORD` | SMTP login password or app password |
-| `SMTP_EMAIL_FROM` | Sender address |
-| `EMAIL_TO` | Recipient address |
+| `BUCKET_NAME` | (Required) S3 bucket where `output.csv` is stored |
+| `SMTP_HOST` | (Required) SMTP server hostname (e.g. `smtp.gmail.com`) |
+| `SMTP_PORT` | (Required) SMTP port — `587` for STARTTLS |
+| `SMTP_USERNAME` | (Required) SMTP login username |
+| `SMTP_PASSWORD` | (Required) SMTP login password or app password |
+| `SMTP_EMAIL_FROM` | (Required) Sender address |
+| `EMAIL_TO` | (Required) Recipient address |
+| `AWS_ACCESS_KEY_ID` | (Local testing only) AWS credentials |
+| `AWS_SECRET_ACCESS_KEY` | (Local testing only) AWS credentials |
+| `AWS_REGION` | (Local testing only) AWS region (e.g. `eu-west-1`) |
 
 For local development, create a `.env` file at the project root — it is loaded automatically via `godotenv`.
 
@@ -61,6 +61,6 @@ The integration test in `main_test.go` calls the real Lambda handler and require
 ## Building for Lambda
 
 ```bash
-GOOS=linux GOARCH=arm64 go build -o bootstrap main.go
+GOOS=linux go build -o bootstrap main.go
 zip function.zip bootstrap
 ```
