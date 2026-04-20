@@ -11,7 +11,6 @@ import (
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
-	"github.com/aws/aws-sdk-go-v2/service/sesv2"
 	"github.com/caniuse-scraper/compare"
 	"github.com/caniuse-scraper/email"
 	"github.com/caniuse-scraper/output"
@@ -19,11 +18,7 @@ import (
 	"github.com/caniuse-scraper/storage"
 )
 
-const (
-	csvKey    = "output.csv"
-	sesSender = "noreply@example.com"
-	sesTo     = "team@example.com"
-)
+const csvKey = "output.csv"
 
 func handler(ctx context.Context) error {
 	bucket := os.Getenv("BUCKET_NAME")
@@ -83,9 +78,14 @@ func handler(ctx context.Context) error {
 		return fmt.Errorf("upload csv: %w", err)
 	}
 
-	// 5. Email results via SES
+	// 5. Email results via SMTP
 	if len(crossed) > 0 {
-		if err := email.Send(ctx, sesv2.NewFromConfig(cfg), sesSender, sesTo, crossed); err != nil {
+		emailClient, err := email.GetClient()
+		if err != nil {
+			return fmt.Errorf("email client: %w", err)
+		}
+
+		if err := emailClient.Send(crossed); err != nil {
 			return fmt.Errorf("send email: %w", err)
 		}
 	}
