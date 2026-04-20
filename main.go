@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/joho/godotenv"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -94,5 +95,6 @@ func handler(ctx context.Context) error {
 }
 
 func main() {
+	godotenv.Load()
 	lambda.Start(handler)
 }

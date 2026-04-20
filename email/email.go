@@ -1,6 +1,7 @@
 package email
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/smtp"
@@ -17,12 +18,45 @@ type Sender interface {
 type client struct {
 	from string
 	to   string
+	host string
 	addr string
 	auth smtp.Auth
 }
 
 func (c *client) Send(features []scraper.Result) error {
-	return smtp.SendMail(c.addr, c.auth, c.from, []string{c.to}, buildMessage(c.from, c.to, features))
+	conn, err := tls.Dial("tcp", c.addr, &tls.Config{ServerName: c.host})
+	if err != nil {
+		return fmt.Errorf("tls dial: %w", err)
+	}
+
+	smtpClient, err := smtp.NewClient(conn, c.host)
+	if err != nil {
+		return fmt.Errorf("smtp client: %w", err)
+	}
+	defer smtpClient.Close()
+
+	if err := smtpClient.Auth(c.auth); err != nil {
+		return fmt.Errorf("smtp auth: %w", err)
+	}
+
+	if err := smtpClient.Mail(c.from); err != nil {
+		return fmt.Errorf("smtp mail: %w", err)
+	}
+
+	if err := smtpClient.Rcpt(c.to); err != nil {
+		return fmt.Errorf("smtp rcpt: %w", err)
+	}
+
+	w, err := smtpClient.Data()
+	if err != nil {
+		return fmt.Errorf("smtp data: %w", err)
+	}
+
+	if _, err := w.Write(buildMessage(c.from, c.to, features)); err != nil {
+		return fmt.Errorf("smtp write: %w", err)
+	}
+
+	return w.Close()
 }
 
 func GetClient() (Sender, error) {
@@ -49,6 +83,7 @@ func GetClient() (Sender, error) {
 	return &client{
 		from: from,
 		to:   to,
+		host: host,
 		addr: host + ":" + port,
 		auth: smtp.PlainAuth("", os.Getenv("SMTP_USERNAME"), os.Getenv("SMTP_PASSWORD"), host),
 	}, nil
