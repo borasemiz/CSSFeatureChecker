@@ -8,7 +8,6 @@ import (
 	"os"
 
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/joho/godotenv"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -17,6 +16,7 @@ import (
 	"github.com/caniuse-scraper/output"
 	"github.com/caniuse-scraper/scraper"
 	"github.com/caniuse-scraper/storage"
+	"github.com/joho/godotenv"
 )
 
 const csvKey = "output.csv"

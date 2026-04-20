@@ -24,16 +24,15 @@ type client struct {
 }
 
 func (c *client) Send(features []scraper.Result) error {
-	conn, err := tls.Dial("tcp", c.addr, &tls.Config{ServerName: c.host})
+	smtpClient, err := smtp.Dial(c.addr)
 	if err != nil {
-		return fmt.Errorf("tls dial: %w", err)
-	}
-
-	smtpClient, err := smtp.NewClient(conn, c.host)
-	if err != nil {
-		return fmt.Errorf("smtp client: %w", err)
+		return fmt.Errorf("smtp dial: %w", err)
 	}
 	defer smtpClient.Close()
+
+	if err := smtpClient.StartTLS(&tls.Config{ServerName: c.host}); err != nil {
+		return fmt.Errorf("starttls: %w", err)
+	}
 
 	if err := smtpClient.Auth(c.auth); err != nil {
 		return fmt.Errorf("smtp auth: %w", err)
@@ -56,7 +55,11 @@ func (c *client) Send(features []scraper.Result) error {
 		return fmt.Errorf("smtp write: %w", err)
 	}
 
-	return w.Close()
+	if err := w.Close(); err != nil {
+		return fmt.Errorf("smtp close: %w", err)
+	}
+
+	return smtpClient.Quit()
 }
 
 func GetClient() (Sender, error) {
