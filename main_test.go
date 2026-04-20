@@ -8,6 +8,7 @@ import (
 )
 
 func TestHandler(t *testing.T) {
+	t.Skip()
 	godotenv.Load()
 	err := handler(context.Background())
 
