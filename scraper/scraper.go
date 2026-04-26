@@ -13,6 +13,7 @@ import (
 const DataURL = "https://raw.githubusercontent.com/Fyrd/caniuse/refs/heads/main/fulldata-json/data-2.0.json"
 
 type Feature struct {
+	ID         string                       `json:"id"`
 	Title      string                       `json:"title"`
 	Spec       string                       `json:"spec"`
 	Status     string                       `json:"status"`
