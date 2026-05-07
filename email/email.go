@@ -39,26 +39,9 @@ func MakeClient() (Sender, error) {
 		return nil, err
 	}
 
-	smtpClient, err := smtp.Dial(credentials.host + ":" + credentials.port)
+	smtpClient, err := initSMTPClient(credentials)
 	if err != nil {
-		return nil, fmt.Errorf("smtp dial: %w", err)
-	}
-
-	if err := smtpClient.StartTLS(&tls.Config{ServerName: credentials.host}); err != nil {
-		return nil, fmt.Errorf("starttls: %w", err)
-	}
-
-	auth := smtp.PlainAuth("", credentials.username, credentials.password, credentials.host)
-	if err := smtpClient.Auth(auth); err != nil {
-		return nil, fmt.Errorf("smtp auth: %w", err)
-	}
-
-	if err := smtpClient.Mail(credentials.from); err != nil {
-		return nil, fmt.Errorf("smtp mail: %w", err)
-	}
-
-	if err := smtpClient.Rcpt(credentials.to); err != nil {
-		return nil, fmt.Errorf("smtp rcpt: %w", err)
+		return nil, err
 	}
 
 	w, err := smtpClient.Data()
@@ -98,4 +81,30 @@ func buildResult(feature scraper.Result) []byte {
 		feature.URL,
 	)
 	return []byte(sb.String())
+}
+
+func initSMTPClient(cr *credentials) (*smtp.Client, error) {
+	smtpClient, err := smtp.Dial(cr.host + ":" + cr.port)
+	if err != nil {
+		return nil, fmt.Errorf("smtp dial: %w", err)
+	}
+
+	if err := smtpClient.StartTLS(&tls.Config{ServerName: cr.host}); err != nil {
+		return nil, fmt.Errorf("starttls: %w", err)
+	}
+
+	auth := smtp.PlainAuth("", cr.username, cr.password, cr.host)
+	if err := smtpClient.Auth(auth); err != nil {
+		return nil, fmt.Errorf("smtp auth: %w", err)
+	}
+
+	if err := smtpClient.Mail(cr.from); err != nil {
+		return nil, fmt.Errorf("smtp mail: %w", err)
+	}
+
+	if err := smtpClient.Rcpt(cr.to); err != nil {
+		return nil, fmt.Errorf("smtp rcpt: %w", err)
+	}
+
+	return smtpClient, nil
 }
