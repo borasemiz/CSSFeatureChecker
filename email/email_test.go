@@ -7,30 +7,9 @@ import (
 	"github.com/caniuse-scraper/scraper"
 )
 
-type mockSender struct {
-	capturedFeatures []scraper.Result
-}
-
-func (m *mockSender) Send(features []scraper.Result) error {
-	m.capturedFeatures = features
-	return nil
-}
-
-func TestSend_Success(t *testing.T) {
-	mock := &mockSender{}
-	features := []scraper.Result{{Title: "CSS Grid Layout", Coverage: 92.50}}
-
-	if err := mock.Send(features); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(mock.capturedFeatures) != 1 {
-		t.Errorf("expected 1 feature, got %d", len(mock.capturedFeatures))
-	}
-}
-
 func TestGetClient_MissingFrom(t *testing.T) {
 	t.Setenv("SMTP_EMAIL_FROM", "")
-	_, err := GetClient()
+	_, err := MakeClient()
 	if err == nil {
 		t.Fatal("expected error when SMTP_EMAIL_FROM is not set")
 	}
@@ -39,7 +18,7 @@ func TestGetClient_MissingFrom(t *testing.T) {
 func TestGetClient_MissingTo(t *testing.T) {
 	t.Setenv("SMTP_EMAIL_FROM", "noreply@example.com")
 	t.Setenv("EMAIL_TO", "")
-	_, err := GetClient()
+	_, err := MakeClient()
 	if err == nil {
 		t.Fatal("expected error when EMAIL_TO is not set")
 	}
@@ -49,7 +28,7 @@ func TestGetClient_MissingHost(t *testing.T) {
 	t.Setenv("SMTP_EMAIL_FROM", "noreply@example.com")
 	t.Setenv("EMAIL_TO", "team@example.com")
 	t.Setenv("SMTP_HOST", "")
-	_, err := GetClient()
+	_, err := MakeClient()
 	if err == nil {
 		t.Fatal("expected error when SMTP_HOST is not set")
 	}
@@ -60,29 +39,41 @@ func TestGetClient_MissingPort(t *testing.T) {
 	t.Setenv("EMAIL_TO", "team@example.com")
 	t.Setenv("SMTP_HOST", "smtp.example.com")
 	t.Setenv("SMTP_PORT", "")
-	_, err := GetClient()
+	_, err := MakeClient()
 	if err == nil {
 		t.Fatal("expected error when SMTP_PORT is not set")
 	}
 }
 
-func TestGetClient_Success(t *testing.T) {
+func TestGetClient_MissingUsername(t *testing.T) {
 	t.Setenv("SMTP_EMAIL_FROM", "noreply@example.com")
 	t.Setenv("EMAIL_TO", "team@example.com")
 	t.Setenv("SMTP_HOST", "smtp.example.com")
-	t.Setenv("SMTP_PORT", "587")
+	t.Setenv("SMTP_PORT", "321")
+	t.Setenv("SMTP_USERNAME", "")
 
-	c, err := GetClient()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if c == nil {
-		t.Fatal("expected client, got nil")
+	_, err := MakeClient()
+	if err == nil {
+		t.Fatal("expected error when SMTP_USERNAME is not set")
 	}
 }
 
-func TestBuildMessage_ContainsHeaders(t *testing.T) {
-	body := string(buildMessage("from@example.com", "to@example.com", []scraper.Result{}))
+func TestGetClient_MissingPassword(t *testing.T) {
+	t.Setenv("SMTP_EMAIL_FROM", "noreply@example.com")
+	t.Setenv("EMAIL_TO", "team@example.com")
+	t.Setenv("SMTP_HOST", "smtp.example.com")
+	t.Setenv("SMTP_PORT", "321")
+	t.Setenv("SMTP_USERNAME", "yser")
+	t.Setenv("SMTP_PASSWORD", "")
+
+	_, err := MakeClient()
+	if err == nil {
+		t.Fatal("expected error when SMTP_PASSWORD is not set")
+	}
+}
+
+func TestBuildHeader(t *testing.T) {
+	body := string(buildHeader("from@example.com", "to@example.com"))
 
 	for _, header := range []string{"From: from@example.com", "To: to@example.com", "Subject:", "MIME-Version:", "Content-Type:"} {
 		if !strings.Contains(body, header) {
@@ -91,20 +82,20 @@ func TestBuildMessage_ContainsHeaders(t *testing.T) {
 	}
 }
 
-func TestBuildMessage_ContainsFeatureDetails(t *testing.T) {
-	features := []scraper.Result{
-		{Title: "CSS Grid Layout", Coverage: 92.50, URL: "https://caniuse.com/css-grid"},
-		{Title: "CSS Flexbox", Coverage: 98.10, URL: "https://caniuse.com/flexbox"},
+func TestBuildResult_ContainsFeatureDetails(t *testing.T) {
+	features := scraper.Result{
+		Title:    "CSS Grid Layout",
+		Coverage: 92.50,
+		URL:      "https://caniuse.com/css-grid",
 	}
 
-	body := string(buildMessage("from@example.com", "to@example.com", features))
+	body := string(buildResult(features))
 
-	for _, f := range features {
-		if !strings.Contains(body, f.Title) {
-			t.Errorf("message missing feature title %q", f.Title)
-		}
-		if !strings.Contains(body, f.URL) {
-			t.Errorf("message missing feature URL %q", f.URL)
-		}
+	if !strings.Contains(body, features.Title) {
+		t.Errorf("message missing feature title %q", features.Title)
+	}
+
+	if !strings.Contains(body, features.URL) {
+		t.Errorf("message missing feature URL %q", features.URL)
 	}
 }

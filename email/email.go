@@ -2,97 +2,81 @@ package email
 
 import (
 	"crypto/tls"
-	"errors"
 	"fmt"
+	"io"
 	"net/smtp"
-	"os"
 	"strings"
 
 	"github.com/caniuse-scraper/scraper"
 )
 
 type Sender interface {
-	Send(features []scraper.Result) error
+	Send() error
+	WriteResult(result scraper.Result) error
 }
 
 type client struct {
-	from string
-	to   string
-	host string
-	addr string
-	auth smtp.Auth
+	smtpClient *smtp.Client
+	writer     io.WriteCloser
 }
 
-func (c *client) Send(features []scraper.Result) error {
-	smtpClient, err := smtp.Dial(c.addr)
+func (c *client) WriteResult(result scraper.Result) error {
+	_, err := c.writer.Write(buildResult(result))
+	return err
+}
+
+func (c *client) Send() error {
+	if err := c.writer.Close(); err != nil {
+		return fmt.Errorf("smtp close: %w", err)
+	}
+
+	return c.smtpClient.Quit()
+}
+
+func MakeClient() (Sender, error) {
+	credentials, err := getCredentials()
 	if err != nil {
-		return fmt.Errorf("smtp dial: %w", err)
-	}
-	defer smtpClient.Close()
-
-	if err := smtpClient.StartTLS(&tls.Config{ServerName: c.host}); err != nil {
-		return fmt.Errorf("starttls: %w", err)
+		return nil, err
 	}
 
-	if err := smtpClient.Auth(c.auth); err != nil {
-		return fmt.Errorf("smtp auth: %w", err)
+	smtpClient, err := smtp.Dial(credentials.host + ":" + credentials.port)
+	if err != nil {
+		return nil, fmt.Errorf("smtp dial: %w", err)
 	}
 
-	if err := smtpClient.Mail(c.from); err != nil {
-		return fmt.Errorf("smtp mail: %w", err)
+	if err := smtpClient.StartTLS(&tls.Config{ServerName: credentials.host}); err != nil {
+		return nil, fmt.Errorf("starttls: %w", err)
 	}
 
-	if err := smtpClient.Rcpt(c.to); err != nil {
-		return fmt.Errorf("smtp rcpt: %w", err)
+	auth := smtp.PlainAuth("", credentials.username, credentials.password, credentials.host)
+	if err := smtpClient.Auth(auth); err != nil {
+		return nil, fmt.Errorf("smtp auth: %w", err)
+	}
+
+	if err := smtpClient.Mail(credentials.from); err != nil {
+		return nil, fmt.Errorf("smtp mail: %w", err)
+	}
+
+	if err := smtpClient.Rcpt(credentials.to); err != nil {
+		return nil, fmt.Errorf("smtp rcpt: %w", err)
 	}
 
 	w, err := smtpClient.Data()
 	if err != nil {
-		return fmt.Errorf("smtp data: %w", err)
+		return nil, fmt.Errorf("smtp data: %w", err)
 	}
 
-	if _, err := w.Write(buildMessage(c.from, c.to, features)); err != nil {
-		return fmt.Errorf("smtp write: %w", err)
-	}
-
-	if err := w.Close(); err != nil {
-		return fmt.Errorf("smtp close: %w", err)
-	}
-
-	return smtpClient.Quit()
-}
-
-func GetClient() (Sender, error) {
-	from := os.Getenv("SMTP_EMAIL_FROM")
-	if from == "" {
-		return nil, errors.New("SMTP_EMAIL_FROM is missing")
-	}
-
-	to := os.Getenv("EMAIL_TO")
-	if to == "" {
-		return nil, errors.New("EMAIL_TO is missing")
-	}
-
-	host := os.Getenv("SMTP_HOST")
-	if host == "" {
-		return nil, errors.New("SMTP_HOST is missing")
-	}
-
-	port := os.Getenv("SMTP_PORT")
-	if port == "" {
-		return nil, errors.New("SMTP_PORT is missing")
+	if _, err := w.Write(buildHeader(credentials.from, credentials.to)); err != nil {
+		return nil, fmt.Errorf("smtp write: %w", err)
 	}
 
 	return &client{
-		from: from,
-		to:   to,
-		host: host,
-		addr: host + ":" + port,
-		auth: smtp.PlainAuth("", os.Getenv("SMTP_USERNAME"), os.Getenv("SMTP_PASSWORD"), host),
+		writer:     w,
+		smtpClient: smtpClient,
 	}, nil
 }
 
-func buildMessage(from, to string, features []scraper.Result) []byte {
+func buildHeader(from, to string) []byte {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "From: %s\r\n", from)
 	fmt.Fprintf(&sb, "To: %s\r\n", to)
@@ -101,8 +85,17 @@ func buildMessage(from, to string, features []scraper.Result) []byte {
 	sb.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
 	sb.WriteString("\r\n")
 	sb.WriteString("The following CSS features have newly crossed 90% browser coverage:\n\n")
-	for _, f := range features {
-		fmt.Fprintf(&sb, "- %s: %.2f%%\n  %s\n\n", f.Title, f.Coverage, f.URL)
-	}
+	return []byte(sb.String())
+}
+
+func buildResult(feature scraper.Result) []byte {
+	var sb strings.Builder
+	fmt.Fprintf(
+		&sb,
+		"- %s: %.2f%%\n  %s\n\n",
+		feature.Title,
+		feature.Coverage,
+		feature.URL,
+	)
 	return []byte(sb.String())
 }
