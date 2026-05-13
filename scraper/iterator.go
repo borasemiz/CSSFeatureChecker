@@ -6,6 +6,8 @@ import (
 	"io"
 )
 
+var ErrorEndFeatures error = errors.New("end_features")
+
 type FeatureInterator interface {
 	Next() (*Feature, error)
 }
@@ -33,7 +35,7 @@ func (it *featureIteratorFromJson) Next() (*Feature, error) {
 
 	val, ok := v.(string)
 	if !ok {
-		return nil, errors.New("end_features")
+		return nil, ErrorEndFeatures
 	}
 
 	feature.ID = val
